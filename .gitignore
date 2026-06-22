@@ -1,0 +1,22 @@
+# Le dossier kb/ est un point de montage (knowledge-base) — jamais tracké ici.
+kb/
+
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Secrets / local
+.env
+.env.*
+*.log
+.DS_Store
