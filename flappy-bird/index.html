@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flappy Bird</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#2c3e50;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+  overflow:hidden
+}
+canvas{
+  max-width:100%;
+  height:auto;
+  box-shadow:0 0 20px rgba(0,0,0,.5);
+  display:block
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="288" height="512"></canvas>
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const W=288,H=512,GRAVITY=.5,FLAP=-7,SCROLL=2,GAP=120,GROUND_H=112;
+const PW=64,PHW=80,PHH=24,OFS=(PHW-PW)/2;
+const BX=50,BS=48,HI=10;
+let state='ready',score=0,hi=parseInt(localStorage.getItem('fb-hi'))||0;
+let bird={y:200,vy:0,rot:0},pipes=[],pt=0,gx=0;
+const imgs={},names=['bird','pipe-top','pipe-bottom','pipe-head','background','ground'];
+let loaded=0;
+
+function preload(cb){
+  names.forEach(n=>{
+    let i=new Image();
+    i.onload=()=>{loaded++;if(loaded===names.length)cb()};
+    i.src='assets/'+n+'.png';
+    imgs[n]=i
+  })
+}
+
+function reset(){
+  bird.y=200;bird.vy=0;bird.rot=0;
+  pipes=[];pt=0;score=0;gx=0
+}
+
+function spawn(){
+  let mn=80,mx=H-GROUND_H-GAP-80;
+  let y=Math.floor(Math.random()*(mx-mn+1))+mn;
+  pipes.push({x:W,th:y,pass:false})
+}
+
+function input(){
+  if(state==='ready'){state='playing';bird.vy=FLAP}
+  else if(state==='playing')bird.vy=FLAP
+  else{reset();state='ready'}
+}
+
+function go(){
+  state='gameover';
+  if(score>hi){hi=score;localStorage.setItem('fb-hi',hi)}
+}
+
+function update(){
+  if(state==='playing'){
+    bird.vy+=GRAVITY;bird.y+=bird.vy;
+    bird.rot=bird.vy<0?Math.max(-25,bird.vy*3):Math.min(90,bird.vy*3);
+    gx-=SCROLL;if(gx<=-336)gx+=336;
+    pt+=16.67;
+    if(pt>=1400){spawn();pt=0}
+    for(let i=pipes.length-1;i>=0;i--){
+      let p=pipes[i];p.x-=SCROLL;
+      if(!p.pass&&p.x+PW<BX){p.pass=true;score++}
+      if(p.x+PHW<0)pipes.splice(i,1)
+    }
+    let bx=BX+HI,by=bird.y+HI,bz=BS-HI*2;
+    if(bird.y<0){bird.y=0;bird.vy=0}
+    if(bird.y+BS>=H-GROUND_H)go();
+    for(let p of pipes){
+      let px=p.x-OFS;
+      if(bx<px+PHW&&bx+bz>px&&by<p.th&&by+bz>0)go();
+      let bp=p.th+GAP,bh=H-GROUND_H-bp;
+      if(bx<px+PHW&&bx+bz>px&&by<bp+bh&&by+bz>bp)go()
+    }
+  }else if(state==='ready'){
+    bird.y=200+Math.sin(Date.now()/300)*10
+  }
+}
+
+function draw(){
+  ctx.drawImage(imgs.background,0,0);
+  for(let p of pipes){
+    let hx=p.x-OFS,te=p.th-PHH;
+    for(let y=0;y<te;y+=16){
+      let h=Math.min(16,te-y);
+      ctx.drawImage(imgs['pipe-top'],0,0,PW,h,p.x,y,PW,h)
+    }
+    ctx.drawImage(imgs['pipe-head'],hx,te,PHW,PHH);
+    let hy=p.th+GAP;
+    ctx.save();
+    ctx.translate(hx,hy+PHH);
+    ctx.scale(1,-1);
+    ctx.drawImage(imgs['pipe-head'],0,0,PHW,PHH);
+    ctx.restore();
+    let bs=hy+PHH,be=H-GROUND_H;
+    for(let y=bs;y<be;y+=16){
+      let h=Math.min(16,be-y);
+      ctx.drawImage(imgs['pipe-bottom'],0,0,PW,h,p.x,y,PW,h)
+    }
+  }
+  ctx.drawImage(imgs.ground,gx,H-GROUND_H);
+  ctx.drawImage(imgs.ground,gx+336,H-GROUND_H);
+  ctx.save();
+  ctx.translate(BX+BS/2,bird.y+BS/2);
+  ctx.rotate(bird.rot*Math.PI/180);
+  ctx.drawImage(imgs.bird,-BS/2,-BS/2);
+  ctx.restore();
+  ctx.fillStyle='#fff';ctx.textAlign='center';
+  if(state==='playing'){
+    ctx.font='bold 36px Arial';
+    ctx.fillText(score,W/2,50)
+  }
+  if(state==='ready'){
+    ctx.font='bold 22px Arial';
+    ctx.fillText('Appuyez sur ESPACE',W/2,H/2-60)
+  }
+  if(state==='gameover'){
+    ctx.fillStyle='rgba(0,0,0,.5)';
+    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#fff';
+    ctx.font='bold 36px Arial';
+    ctx.fillText('Game Over',W/2,H/2-70);
+    ctx.font='bold 24px Arial';
+    ctx.fillText('Score: '+score,W/2,H/2-30);
+    ctx.fillText('Meilleur: '+hi,W/2,H/2+5);
+    ctx.font='bold 18px Arial';
+    ctx.fillText('Appuyez sur ESPACE',W/2,H/2+55)
+  }
+}
+
+function loop(){update();draw();requestAnimationFrame(loop)}
+
+preload(()=>{
+  document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();input()}});
+  canvas.addEventListener('click',input);
+  loop()
+});
+</script>
+</body>
+</html>
