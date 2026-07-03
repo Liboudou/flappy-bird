@@ -27,11 +27,11 @@ canvas{
 <script>
 const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
 const W=288,H=512,GRAVITY=.5,FLAP=-7,SCROLL=2,GAP=120,GROUND_H=112;
-const PW=64,PHW=80,PHH=24,OFS=(PHW-PW)/2;
+const PW=64,HH=9,PH=32;
 const BX=50,BS=48,HI=10;
 let state='ready',score=0,hi=parseInt(localStorage.getItem('fb-hi'))||0;
 let bird={y:200,vy:0,rot:0},pipes=[],pt=0,gx=0;
-const imgs={},names=['bird','pipe-top','pipe-bottom','pipe-head','background','ground'];
+const imgs={},names=['bird','pipe-body','background','ground'];
 let loaded=0;
 
 function preload(cb){
@@ -75,16 +75,15 @@ function update(dt){
     for(let i=pipes.length-1;i>=0;i--){
       let p=pipes[i];p.x-=SCROLL*dt;
       if(!p.pass&&p.x+PW<BX){p.pass=true;score++}
-      if(p.x+PHW<0)pipes.splice(i,1)
+      if(p.x+PW<0)pipes.splice(i,1)
     }
     let bx=BX+HI,by=bird.y+HI,bz=BS-HI*2;
     if(bird.y<0){bird.y=0;bird.vy=0}
     if(bird.y+BS>=H-GROUND_H)go();
     for(let p of pipes){
-      let px=p.x-OFS;
-      if(bx<px+PHW&&bx+bz>px&&by<p.th&&by+bz>0)go();
+      if(bx<p.x+PW&&bx+bz>p.x&&by<p.th&&by+bz>0)go();
       let bp=p.th+GAP,bh=H-GROUND_H-bp;
-      if(bx<px+PHW&&bx+bz>px&&by<bp+bh&&by+bz>bp)go()
+      if(bx<p.x+PW&&bx+bz>p.x&&by<bp+bh&&by+bz>bp)go()
     }
   }else if(state==='ready'){
     bird.y=200+Math.sin(Date.now()/300)*10
@@ -94,22 +93,23 @@ function update(dt){
 function draw(){
   ctx.drawImage(imgs.background,0,0);
   for(let p of pipes){
-    let hx=p.x-OFS,te=p.th-PHH;
-    for(let y=0;y<te;y+=16){
-      let h=Math.min(16,te-y);
-      ctx.drawImage(imgs['pipe-top'],0,0,PW,h,p.x,y,PW,h)
+    // Top pipe: body tiled, head flipped at bottom
+    let be=p.th-HH;
+    for(let y=0;y<be;y+=PH-HH){
+      let h=Math.min(PH-HH,be-y);
+      ctx.drawImage(imgs["pipe-body"],0,HH,PW,h,p.x,y,PW,h)
     }
-    ctx.drawImage(imgs['pipe-head'],hx,te,PHW,PHH);
-    let hy=p.th+GAP;
     ctx.save();
-    ctx.translate(hx,hy+PHH);
+    ctx.translate(p.x,p.th);
     ctx.scale(1,-1);
-    ctx.drawImage(imgs['pipe-head'],0,0,PHW,PHH);
+    ctx.drawImage(imgs["pipe-body"],0,0,PW,HH,0,0,PW,HH);
     ctx.restore();
-    let bs=hy+PHH,be=H-GROUND_H;
-    for(let y=bs;y<be;y+=16){
-      let h=Math.min(16,be-y);
-      ctx.drawImage(imgs['pipe-bottom'],0,0,PW,h,p.x,y,PW,h)
+    // Bottom pipe: head at top, body tiled below
+    ctx.drawImage(imgs["pipe-body"],0,0,PW,HH,p.x,p.th+GAP,PW,HH);
+    let bs=p.th+GAP+HH;
+    for(let y=bs;y<H-GROUND_H;y+=PH-HH){
+      let h=Math.min(PH-HH,H-GROUND_H-y);
+      ctx.drawImage(imgs["pipe-body"],0,HH,PW,h,p.x,y,PW,h)
     }
   }
   ctx.drawImage(imgs.ground,gx,H-GROUND_H);
